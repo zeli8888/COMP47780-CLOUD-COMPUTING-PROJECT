@@ -18,16 +18,10 @@ http://localhost:8888
 apt-get update
 apt-get install -y zip unzip
 
-# test pig
+# test pig, java, python
 pig -version
-
-# test java and python
-root@58cf80861f43:/usr/local/spark# java -version
-openjdk version "1.8.0_442"
-OpenJDK Runtime Environment (build 1.8.0_442-8u442-b06~us1-0ubuntu1~24.04-b06)   
-OpenJDK 64-Bit Server VM (build 25.442-b06, mixed mode)
-root@58cf80861f43:/usr/local/spark# python3 --version
-Python 3.12.7
+java -version
+python --version
 
 # test hdfs
 mkdir -p /root/ipynb/spark/work && cd /root/ipynb/spark/work
