@@ -1,0 +1,89 @@
+docker run -d -p 9870:9870 -p 8088:8088 -p 8080:8080 -p 18080:18080 -p 9000:9000 -p 8888:8888 -p 9864:9864 -v ${PWD}:/root/ipynb --name cc-spark-jupyter-pig zeli8888/spark-jupyter-pig
+
+-p 9870:9870    # NameNode Web UI →  NameNode 
+-p 9000:9000    # HDFS RPC
+-p 8088:8088    # ResourceManager Web UI →  ResourceManager, yarn service
+-p 9864:9864    # DataNode Web UI →  DataNode
+-p 8080:8080    # Spark Master UI →  Spark Master
+-p 18080:18080  # Spark History Server →  Spark History Server
+-p 8888:8888    # Jupyter Notebook UI →  Jupyter 
+
+# access container in interactive mode
+docker exec -it cc-spark-jupyter-pig /bin/bash
+
+# access jupyter notebook from host browser
+http://localhost:8888
+
+# install zip/unzip if needed
+apt-get update
+apt-get install -y zip unzip
+
+# test pig
+pig -version
+
+# test java and python
+root@58cf80861f43:/usr/local/spark# java -version
+openjdk version "1.8.0_442"
+OpenJDK Runtime Environment (build 1.8.0_442-8u442-b06~us1-0ubuntu1~24.04-b06)   
+OpenJDK 64-Bit Server VM (build 25.442-b06, mixed mode)
+root@58cf80861f43:/usr/local/spark# python3 --version
+Python 3.12.7
+
+# test hdfs
+mkdir -p /root/ipynb/spark/work && cd /root/ipynb/spark/work
+## prepare exercise data
+echo "Hello world from COMP47470" > /root/ipynb/spark/work/f1.txt
+echo "Hello there from UCD" > /root/ipynb/spark/work/f2.txt
+
+## copy data to HDFS
+hdfs dfs -mkdir -p /word_count
+hdfs dfs -copyFromLocal /root/ipynb/spark/work/f1.txt /word_count/
+hdfs dfs -copyFromLocal /root/ipynb/spark/work/f2.txt /word_count/
+hdfs dfs -ls /word_count
+
+## run wordcount example
+hadoop jar \
+  $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.4.1.jar \
+  wordcount \
+  /word_count/*.txt \
+  /word_count/output/
+
+## check output
+hdfs dfs -ls /word_count/output
+hdfs dfs -cat /word_count/output/part-r-00000
+hdfs fsck /word_count/f1.txt -files -blocks -locations
+
+# start pyspark
+cd $SPARK_HOME && ./bin/pyspark
+
+# test yarn
+yarn jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.4.1.jar pi 1 50
+
+# test spark against yarn
+$SPARK_HOME/bin/spark-submit --class org.apache.spark.examples.SparkPi \
+    --master yarn \
+    $SPARK_HOME/examples/jars/spark-examples*.jar \
+    100
+
+# test spark standalone
+$SPARK_HOME/bin/spark-submit --class org.apache.spark.examples.SparkPi \
+    --master spark://localhost:7077 \
+    $SPARK_HOME/examples/jars/spark-examples*.jar \
+    100
+
+# start a scala spark shell
+$SPARK_HOME/bin/spark-shell --master spark://localhost:7077
+
+# start a python spark shell
+pyspark --master spark://localhost:7077 > /tmp/jupyter.log 2>&1 &
+
+# start a python spark shell against yarn
+pyspark \
+    --driver-memory 2g \
+    --executor-memory 2g \
+    --num-executors 1 \
+    --executor-cores 1 \
+    --conf spark.driver.maxResultSize=8g \
+    --conf spark.network.timeout=2000 \
+    --queue default \
+    --master yarn-client > /tmp/jupyter.log 2>&1 &
