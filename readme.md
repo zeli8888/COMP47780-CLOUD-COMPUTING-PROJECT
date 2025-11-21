@@ -28,12 +28,12 @@ hadoop jar /root/ipynb/ccproject/ccproject-1.0-SNAPSHOT.jar \
 
 ### Get Results
 ```bash
-hdfs dfs -get -f /patient_no_show_analysis/results/patient_demographics/part-r-00000 /root/ipynb/dashboard/patient_demographics_results.txt
+hdfs dfs -get -f /patient_no_show_analysis/results/patient_demographics/part-r-00000 /root/ipynb/patient_demographics_results.txt
 ```
 
 ## Dashboard Analysis
 ```bash
-docker run -d -p 8501:8501 -v ./dashboard/patient_demographics_results.txt:/app/patient_demographics_results.txt --name cc-dashboard zeli8888/cc-medical-dashboard
+docker run -d -p 8501:8501 -v ./patient_demographics_results.txt:/app/patient_demographics_results.txt --name cc-dashboard zeli8888/cc-medical-dashboard
 ```
 **Access via http://localhost:8501**
 ## Demo
