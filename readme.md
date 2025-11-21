@@ -32,7 +32,12 @@ hdfs dfs -get -f /patient_no_show_analysis/results/patient_demographics/part-r-0
 ```
 
 ## Dashboard Analysis
-
+```bash
+docker run -d -p 8501:8501 -v ./dashboard/patient_demographics_results.txt:/app/patient_demographics_results.txt --name cc-dashboard zeli8888/cc-medical-dashboard
+```
+**Access via http://localhost:8501**
 ## Demo
+![alt text](demo/local_1.png) ![alt text](demo/local_2.png) ![alt text](demo/local_3.png) ![alt text](demo/local_4.png) ![alt text](demo/local_5.png) ![alt text](demo/local_6.png) ![alt text](demo/local_7.png) ![alt text](demo/local_8.png)
+
 
 # Deploy on AWS

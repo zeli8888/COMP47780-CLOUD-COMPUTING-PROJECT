@@ -50,6 +50,11 @@ cd dashboard && streamlit run medical_dashboard.py
 ```bash
 http://localhost:8501
 ```
-
-# Current Issues
-1. cross validate the analysis data generated
+## Docker
+```bash
+cd dashboard && docker build -t cc-medical-dashboard . && docker tag cc-medical-dashboard zeli8888/cc-medical-dashboard && docker push zeli8888/cc-medical-dashboard && cd ..
+```
+```bash
+docker run -d -p 8501:8501 -v ./dashboard/patient_demographics_results.txt:/app/patient_demographics_results.txt --name cc-dashboard zeli8888/cc-medical-dashboard
+```
+Access via http://localhost:8501
