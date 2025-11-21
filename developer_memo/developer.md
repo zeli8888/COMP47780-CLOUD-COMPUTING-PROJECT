@@ -58,3 +58,9 @@ cd dashboard && docker build -t cc-medical-dashboard . && docker tag cc-medical-
 docker run -d -p 8501:8501 -v ./patient_demographics_results.txt:/app/patient_demographics_results.txt --name cc-dashboard zeli8888/cc-medical-dashboard
 ```
 Access via http://localhost:8501
+
+# AWS EMR
+https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-gs.html
+https://aws.amazon.com/emr/pricing/
+https://docs.aws.amazon.com/cli/latest/reference/emr/create-cluster.html
