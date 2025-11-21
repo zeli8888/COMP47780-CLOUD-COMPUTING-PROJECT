@@ -55,10 +55,10 @@ class MedicalDashboard:
         
         for key, value in self.data.items():
             # Gender analysis
-            if key.startswith('GENDER_BEHAVIOR'):
+            if key.startswith('GENDER'):
                 parts = key.split('_')
-                gender = parts[2]
-                status = parts[3]
+                gender = parts[1]
+                status = parts[2]
                 if gender not in processed['gender']:
                     processed['gender'][gender] = {'Attended': 0, 'NoShow': 0}
                 processed['gender'][gender][status] = value

@@ -1,5 +1,5 @@
 # Deploy locally
-## Run Analysis (results already saved, optional)
+## Run Hadoop (results already saved, optional)
 ### Unzip Data
 ```bash
 unzip data/archive.zip -d data/ && mv data/KaggleV2-May-2016.csv data/medical_appointments.csv
@@ -31,6 +31,8 @@ hadoop jar /root/ipynb/ccproject/ccproject-1.0-SNAPSHOT.jar \
 hdfs dfs -get -f /patient_no_show_analysis/results/patient_demographics/part-r-00000 /root/ipynb/dashboard/patient_demographics_results.txt
 ```
 
-## Show Dashboard
+## Dashboard Analysis
 
 ## Demo
+
+# Deploy on AWS
