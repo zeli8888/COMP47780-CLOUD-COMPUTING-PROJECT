@@ -57,8 +57,8 @@ class MedicalDashboard:
             # Gender analysis
             if key.startswith('GENDER'):
                 parts = key.split('_')
-                gender = parts[1]
-                status = parts[2]
+                gender = '_'.join(parts[1:-1])
+                status = parts[-1]
                 if gender not in processed['gender']:
                     processed['gender'][gender] = {'Attended': 0, 'NoShow': 0}
                 processed['gender'][gender][status] = value
@@ -66,8 +66,8 @@ class MedicalDashboard:
             # Age group analysis
             elif key.startswith('AGE_GROUP'):
                 parts = key.split('_')
-                age_group = parts[2] + '_' + parts[3]
-                status = parts[4]
+                age_group = '_'.join(parts[2:-1])
+                status = parts[-1]
                 if age_group not in processed['age_groups']:
                     processed['age_groups'][age_group] = {'Attended': 0, 'NoShow': 0}
                 processed['age_groups'][age_group][status] = value
@@ -75,8 +75,8 @@ class MedicalDashboard:
             # Detailed age analysis
             elif key.startswith('DETAILED_AGE'):
                 parts = key.split('_')
-                age_range = parts[2]
-                status = parts[3]
+                age_range = '_'.join(parts[2:-1])
+                status = parts[-1]
                 if age_range not in processed['detailed_age']:
                     processed['detailed_age'][age_range] = {'Attended': 0, 'NoShow': 0}
                 processed['detailed_age'][age_range][status] = value
@@ -84,9 +84,7 @@ class MedicalDashboard:
             # Health conditions analysis
             elif key.startswith('HEALTH_'):
                 parts = key.split('_')
-                condition = parts[1]
-                if len(parts) > 3 and parts[3].isdigit():  # Multiple diseases
-                    condition = f"{parts[1]}_{parts[2]}_{parts[3]}_DISEASES"
+                condition = '_'.join(parts[1:-1])
                 status = parts[-1]
                 if condition not in processed['health_conditions']:
                     processed['health_conditions'][condition] = {'Attended': 0, 'NoShow': 0}
@@ -95,8 +93,7 @@ class MedicalDashboard:
             # Neighborhood analysis
             elif key.startswith('NEIGHBOURHOOD_'):
                 parts = key.split('_')
-                # Handle neighborhood names that may contain multiple underscores
-                neighborhood_parts = parts[1:-1]  # All parts except first and last
+                neighborhood_parts = parts[1:-1]
                 neighborhood = '_'.join(neighborhood_parts)
                 status = parts[-1]
                 if neighborhood not in processed['neighbourhoods']:
@@ -115,8 +112,8 @@ class MedicalDashboard:
             # SMS intervention
             elif key.startswith('SMS_'):
                 parts = key.split('_')
-                sms_group = parts[1] + '_' + parts[2]
-                status = parts[3]
+                sms_group = '_'.join(parts[1:-1])
+                status = parts[-1]
                 if sms_group not in processed['sms_intervention']:
                     processed['sms_intervention'][sms_group] = {'Attended': 0, 'NoShow': 0}
                 processed['sms_intervention'][sms_group][status] = value
@@ -124,8 +121,7 @@ class MedicalDashboard:
             # Lead time analysis - FIXED
             elif key.startswith('LEAD_TIME_'):
                 parts = key.split('_')
-                # Extract lead time category (everything between LEAD_TIME and status)
-                lead_time_parts = parts[2:-1]  # Parts between 'LEAD_TIME' and status
+                lead_time_parts = parts[2:-1]
                 lead_time = '_'.join(lead_time_parts)
                 status = parts[-1]
                 if lead_time not in processed['lead_time']:
@@ -144,10 +140,8 @@ class MedicalDashboard:
         st.header("📊 Overview Dashboard")
         
         # Calculate overall data
-        total_attended = sum([v['Attended'] for category in self.processed_data.values() 
-                             for v in category.values() if 'Attended' in v]) // 10  # Avoid double counting
-        total_noshow = sum([v['NoShow'] for category in self.processed_data.values() 
-                           for v in category.values() if 'NoShow' in v]) // 10
+        total_attended = self.processed_data['gender']['F']['Attended'] + self.processed_data['gender']['M']['Attended']
+        total_noshow = self.processed_data['gender']['F']['NoShow'] + self.processed_data['gender']['M']['NoShow']
         
         total = total_attended + total_noshow
         noshow_rate = self.calculate_no_show_rate(total_attended, total_noshow)
