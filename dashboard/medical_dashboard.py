@@ -64,10 +64,10 @@ class MedicalDashboard:
                 processed['gender'][gender][status] = value
                 
             # Age group analysis
-            elif key.startswith('AGE_GROUP_BEHAVIOR'):
+            elif key.startswith('AGE_GROUP'):
                 parts = key.split('_')
-                age_group = parts[3] + '_' + parts[4]
-                status = parts[5]
+                age_group = parts[2] + '_' + parts[3]
+                status = parts[4]
                 if age_group not in processed['age_groups']:
                     processed['age_groups'][age_group] = {'Attended': 0, 'NoShow': 0}
                 processed['age_groups'][age_group][status] = value
@@ -85,8 +85,8 @@ class MedicalDashboard:
             elif key.startswith('HEALTH_'):
                 parts = key.split('_')
                 condition = parts[1]
-                if len(parts) > 3 and parts[2].isdigit():  # Multiple diseases
-                    condition = f"{parts[1]}_{parts[2]}_DISEASES"
+                if len(parts) > 3 and parts[3].isdigit():  # Multiple diseases
+                    condition = f"{parts[1]}_{parts[2]}_{parts[3]}_DISEASES"
                 status = parts[-1]
                 if condition not in processed['health_conditions']:
                     processed['health_conditions'][condition] = {'Attended': 0, 'NoShow': 0}
