@@ -1,5 +1,9 @@
 # Deploy Remotely
 ## Amazon EMR Cluster (additional minor cost introduced, results already saved, optional)
+### Unzip Data
+```bash
+unzip data/archive.zip -d data/ && mv data/KaggleV2-May-2016.csv data/medical_appointments.csv
+```
 ### Install AWS CLI and Configure
 Follow instructions at
 https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
