@@ -52,8 +52,4 @@ http://localhost:8501
 ```
 
 # Current Issues
-1. walk through plots
-2. verify sms received data
-3. High-Risk Age Groups (TOP5) title change
-4. Health Conditions Detailed Data missing 4 diseases
-6. cross validate the analysis data generated
+1. cross validate the analysis data generated

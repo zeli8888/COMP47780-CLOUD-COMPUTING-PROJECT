@@ -20,20 +20,20 @@ public class PatientDemographicsMapper extends Mapper<Object, Text, Text, IntWri
         if (fields[0].equals("PatientId")) {
             return;
         }
-//        PatientId,AppointmentID,Gender,ScheduledDay,AppointmentDay,Age,Neighbourhood,Scholarship,Hipertension,Diabetes,Alcoholism,Handcap,SMS_received,No-show
+        // PatientId,AppointmentID,Gender,ScheduledDay,AppointmentDay,Age,Neighbourhood,Scholarship,Hipertension,Diabetes,Alcoholism,Handcap,SMS_received,No-show
 
         try {
-            String gender = fields[2].trim();                    // Gender
-            String scheduledDay = fields[3].trim();              // ScheduledDay
-            String appointmentDay = fields[4].trim();            // AppointmentDay
-            String ageStr = fields[5].trim();                   // Age
-            String neighbourhood = fields[6].trim();            // Neighbourhood
-            String hypertension = fields[8].trim();             // Hipertension
-            String diabetes = fields[9].trim();                 // Diabetes
-            String alcoholism = fields[10].trim();              // Alcoholism
-            String handicap = fields[11].trim();                // Handcap
-            String smsReceived = fields[12].trim();             // SMS_received
-            String noShow = fields[13].trim();                  // No-show
+            String gender = fields[2].trim(); // Gender
+            String scheduledDay = fields[3].trim(); // ScheduledDay
+            String appointmentDay = fields[4].trim(); // AppointmentDay
+            String ageStr = fields[5].trim(); // Age
+            String neighbourhood = fields[6].trim(); // Neighbourhood
+            String hypertension = fields[8].trim(); // Hipertension
+            String diabetes = fields[9].trim(); // Diabetes
+            String alcoholism = fields[10].trim(); // Alcoholism
+            String handicap = fields[11].trim(); // Handcap
+            String smsReceived = fields[12].trim(); // SMS_received
+            String noShow = fields[13].trim(); // No-show
 
             // Validate data completeness
             if (gender.isEmpty() || ageStr.isEmpty() || noShow.isEmpty() ||
@@ -44,32 +44,33 @@ public class PatientDemographicsMapper extends Mapper<Object, Text, Text, IntWri
             int age;
             try {
                 age = Integer.parseInt(ageStr);
-                if (age < 0 || age > 120) return; // Filter invalid ages
+                if (age < 0 || age > 120)
+                    return; // Filter invalid ages
             } catch (NumberFormatException e) {
                 return;
             }
 
             String attendanceStatus = noShow.equalsIgnoreCase("Yes") ? "NoShow" : "Attended";
 
-            // === 1. Gender Dimension Analysis ===
+            // === 1. Scheduling Lead Time Analysis ===
+            boolean valid = analyzeSchedulingLeadTime(context, scheduledDay, appointmentDay, attendanceStatus);
+            if (!valid) {
+                return; // Skip further analysis for invalid lead time records
+            }
+
+            // === 2. Gender Dimension Analysis ===
             analyzeByGender(context, gender, attendanceStatus);
 
-            // === 2. Age Dimension Analysis ===
+            // === 3. Age Dimension Analysis ===
             analyzeByAge(context, age, attendanceStatus);
 
-            // === 3. Neighborhood Dimension Analysis ===
+            // === 4. Neighborhood Dimension Analysis ===
             analyzeByNeighbourhood(context, neighbourhood, attendanceStatus);
 
-            // === 4. Health Condition Dimension Analysis ===
+            // === 5. Health Condition Dimension Analysis ===
             analyzeByHealthCondition(context, hypertension, diabetes, alcoholism, handicap, attendanceStatus);
 
-            // === 5. High-Risk Groups Cross Analysis ===
-            analyzeHighRiskGroups(context, gender, age, hypertension, diabetes, attendanceStatus);
-
-            // === 6. Scheduling Lead Time Analysis ===
-            analyzeSchedulingLeadTime(context, scheduledDay, appointmentDay, attendanceStatus);
-
-            // === 7. SMS Reminder Effectiveness Analysis ===
+            // === 6. SMS Reminder Effectiveness Analysis ===
             analyzeSMSReminder(context, smsReceived, attendanceStatus);
 
         } catch (Exception e) {
@@ -119,7 +120,7 @@ public class PatientDemographicsMapper extends Mapper<Object, Text, Text, IntWri
      * Health Condition Dimension Analysis
      */
     private void analyzeByHealthCondition(Context context, String hypertension, String diabetes,
-                                          String alcoholism, String handicap, String attendanceStatus)
+            String alcoholism, String handicap, String attendanceStatus)
             throws IOException, InterruptedException {
 
         // Single disease analysis
@@ -160,44 +161,22 @@ public class PatientDemographicsMapper extends Mapper<Object, Text, Text, IntWri
     }
 
     /**
-     * High-Risk Groups Cross Analysis
-     */
-    private void analyzeHighRiskGroups(Context context, String gender, int age,
-                                       String hypertension, String diabetes, String attendanceStatus)
-            throws IOException, InterruptedException {
-
-        // Young male analysis (typically higher no-show rates)
-        if (gender.equals("M") && age <= 35) {
-            analysisKey.set("RISK_GROUP_YOUNG_MALE_" + attendanceStatus);
-            context.write(analysisKey, one);
-        }
-
-        // Chronic disease patients analysis
-        if (hypertension.equals("1") || diabetes.equals("1")) {
-            analysisKey.set("RISK_GROUP_CHRONIC_DISEASE_" + gender + "_" + attendanceStatus);
-            context.write(analysisKey, one);
-        }
-
-        // Elderly female analysis (typically higher attendance rates)
-        if (gender.equals("F") && age >= 60) {
-            analysisKey.set("RISK_GROUP_ELDERLY_FEMALE_" + attendanceStatus);
-            context.write(analysisKey, one);
-        }
-    }
-
-    /**
      * Scheduling Lead Time Analysis
      * Analyzes the relationship between appointment lead time and attendance
      */
-    private void analyzeSchedulingLeadTime(Context context, String scheduledDay,
-                                           String appointmentDay, String attendanceStatus)
+    private boolean analyzeSchedulingLeadTime(Context context, String scheduledDay,
+            String appointmentDay, String attendanceStatus)
             throws IOException, InterruptedException {
         long leadTimeDays = calculateLeadTimeDays(scheduledDay, appointmentDay);
+        if (leadTimeDays < 0) {
+            return false; // Invalid lead time
+        }
         String leadTimeCategory = categorizeLeadTime(leadTimeDays);
 
         // Lead time vs attendance behavior
         analysisKey.set("LEAD_TIME_" + leadTimeCategory + "_" + attendanceStatus);
         context.write(analysisKey, one);
+        return true;
     }
 
     /**
@@ -229,23 +208,32 @@ public class PatientDemographicsMapper extends Mapper<Object, Text, Text, IntWri
      * Categorize lead time into meaningful groups
      */
     private String categorizeLeadTime(long leadTimeDays) {
-        if (leadTimeDays < 0) return "INVALID";
-        else if (leadTimeDays == 0) return "SAME_DAY";
-        else if (leadTimeDays <= 3) return "SHORT";
-        else if (leadTimeDays <= 7) return "MEDIUM";
-        else if (leadTimeDays <= 30) return "LONG";
-        else if (leadTimeDays <= 90) return "VERY_LONG";
-        else return "EXTREMELY_LONG";
+        if (leadTimeDays == 0)
+            return "SAME_DAY";
+        else if (leadTimeDays <= 3)
+            return "SHORT";
+        else if (leadTimeDays <= 7)
+            return "MEDIUM";
+        else if (leadTimeDays <= 30)
+            return "LONG";
+        else if (leadTimeDays <= 90)
+            return "VERY_LONG";
+        else
+            return "EXTREMELY_LONG";
     }
 
     /**
      * Age categorization
      */
     private String categorizeAge(int age) {
-        if (age <= 18) return "CHILDREN_YOUTH";
-        else if (age <= 35) return "YOUNG_ADULTS";
-        else if (age <= 55) return "MIDDLE_AGED";
-        else return "SENIORS";
+        if (age <= 18)
+            return "CHILDREN_YOUTH";
+        else if (age <= 35)
+            return "YOUNG_ADULTS";
+        else if (age <= 55)
+            return "MIDDLE_AGED";
+        else
+            return "SENIORS";
     }
 
     /**
@@ -262,10 +250,14 @@ public class PatientDemographicsMapper extends Mapper<Object, Text, Text, IntWri
      */
     private int countDiseases(String hypertension, String diabetes, String alcoholism, String handicap) {
         int count = 0;
-        if (hypertension.equals("1")) count++;
-        if (diabetes.equals("1")) count++;
-        if (alcoholism.equals("1")) count++;
-        if (!handicap.equals("0")) count++;
+        if (hypertension.equals("1"))
+            count++;
+        if (diabetes.equals("1"))
+            count++;
+        if (alcoholism.equals("1"))
+            count++;
+        if (!handicap.equals("0"))
+            count++;
         return count;
     }
 }

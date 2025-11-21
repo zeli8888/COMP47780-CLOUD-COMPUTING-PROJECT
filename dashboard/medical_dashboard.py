@@ -48,7 +48,6 @@ class MedicalDashboard:
             'detailed_age': {},
             'health_conditions': {},
             'neighbourhoods': {},
-            'risk_groups': {},
             'sms_intervention': {},
             'lead_time': {}
         }
@@ -100,15 +99,6 @@ class MedicalDashboard:
                     processed['neighbourhoods'][neighborhood] = {'Attended': 0, 'NoShow': 0}
                 processed['neighbourhoods'][neighborhood][status] = value
                 
-            # Risk groups
-            elif key.startswith('RISK_GROUP_'):
-                parts = key.split('_')
-                risk_group = '_'.join(parts[2:-1])
-                status = parts[-1]
-                if risk_group not in processed['risk_groups']:
-                    processed['risk_groups'][risk_group] = {'Attended': 0, 'NoShow': 0}
-                processed['risk_groups'][risk_group][status] = value
-                
             # SMS intervention
             elif key.startswith('SMS_'):
                 parts = key.split('_')
@@ -140,8 +130,11 @@ class MedicalDashboard:
         st.header("📊 Overview Dashboard")
         
         # Calculate overall data
-        total_attended = self.processed_data['gender']['F']['Attended'] + self.processed_data['gender']['M']['Attended']
-        total_noshow = self.processed_data['gender']['F']['NoShow'] + self.processed_data['gender']['M']['NoShow']
+        if not self.processed_data['gender']:
+            st.warning("No overview data available")
+            return
+        total_attended = sum(self.processed_data['gender'][g]['Attended'] for g in self.processed_data['gender'])
+        total_noshow = sum(self.processed_data['gender'][g]['NoShow'] for g in self.processed_data['gender'])
         
         total = total_attended + total_noshow
         noshow_rate = self.calculate_no_show_rate(total_attended, total_noshow)
@@ -195,10 +188,14 @@ class MedicalDashboard:
             return
             
         gender_data = []
+        normal_gender_map = {
+            'F': 'Female',
+            'M': 'Male',
+        }
         for gender, stats in self.processed_data['gender'].items():
             rate = self.calculate_no_show_rate(stats['Attended'], stats['NoShow'])
             gender_data.append({
-                'Gender': 'Female' if gender == 'F' else 'Male',
+                'Gender': normal_gender_map[gender] if gender in normal_gender_map else gender,
                 'Appointments_Attended': stats['Attended'],
                 'No_Shows': stats['NoShow'],
                 'No_Show_Rate': rate
@@ -230,6 +227,13 @@ class MedicalDashboard:
             'No_Shows': '{:,}', 
             'No_Show_Rate': '{:.1f}%'
         }), use_container_width=True)
+    
+    def sort_age_ranges(self, age_range):
+        """Helper function to sort age ranges correctly"""
+        if '+' in age_range:
+            return int(age_range.replace('+', ''))
+        parts = age_range.split('-')
+        return int(parts[0])
     
     def display_age_analysis(self):
         """Display age analysis"""
@@ -274,6 +278,7 @@ class MedicalDashboard:
                         'No_Shows': stats['NoShow'],
                         'No_Show_Rate': rate
                     })
+            detailed_age_data.sort(key=lambda x: self.sort_age_ranges(x['Age_Range']))
             
             if detailed_age_data:
                 df_detailed = pd.DataFrame(detailed_age_data)
@@ -282,10 +287,8 @@ class MedicalDashboard:
                 fig.update_layout(xaxis_title='Age Range', yaxis_title='No-Show Rate (%)')
                 st.plotly_chart(fig, use_container_width=True)
         
-        # Display TOP5 highest no-show rate age groups
-        st.subheader("🚨 High-Risk Age Groups (TOP5)")
-        top5_high_risk = df_ages.head(5)
-        st.dataframe(top5_high_risk.style.format({
+        st.subheader("🚨 Age Detailed Data")
+        st.dataframe(df_ages.style.format({
             'Appointments_Attended': '{:,}',
             'No_Shows': '{:,}',
             'No_Show_Rate': '{:.1f}%'
@@ -301,7 +304,7 @@ class MedicalDashboard:
             
         health_data = []
         for condition, stats in self.processed_data['health_conditions'].items():
-            if stats['Attended'] + stats['NoShow'] > 100:  # Filter small sample groups
+            if stats['Attended'] + stats['NoShow'] > 50:  # Filter small sample groups
                 rate = self.calculate_no_show_rate(stats['Attended'], stats['NoShow'])
                 health_data.append({
                     'Condition': condition.replace('_', ' '),
@@ -321,7 +324,7 @@ class MedicalDashboard:
             fig = px.bar(df_health, x='No_Show_Rate', y='Condition', orientation='h',
                         title='No-Show Rate by Health Condition',
                         color='No_Show_Rate',
-                        color_continuous_scale='RdYlGn')
+                        color_continuous_scale='RdYlGn_r')
             fig.update_layout(yaxis_title='Health Condition', xaxis_title='No-Show Rate (%)')
             st.plotly_chart(fig, use_container_width=True)
         
@@ -360,6 +363,7 @@ class MedicalDashboard:
                 })
         
         if not neighbourhood_data:
+            st.warning("No neighborhoods with sufficient data to display")
             return
             
         df_neighbourhood = pd.DataFrame(neighbourhood_data)
@@ -370,6 +374,7 @@ class MedicalDashboard:
         with col1:
             st.subheader("🚨 High No-Show Rate Neighborhoods (TOP10)")
             high_risk_areas = df_neighbourhood.nlargest(10, 'No_Show_Rate')
+            high_risk_areas.sort_values('No_Show_Rate', ascending=True, inplace=True)
             fig = px.bar(high_risk_areas, x='No_Show_Rate', y='Neighborhood', orientation='h',
                         title='Top 10 High No-Show Rate Neighborhoods',
                         color='No_Show_Rate', color_continuous_scale='Reds')
@@ -378,9 +383,10 @@ class MedicalDashboard:
         with col2:
             st.subheader("✅ Low No-Show Rate Neighborhoods (TOP10)")
             low_risk_areas = df_neighbourhood.nsmallest(10, 'No_Show_Rate')
+            low_risk_areas.sort_values('No_Show_Rate', ascending=False, inplace=True)
             fig = px.bar(low_risk_areas, x='No_Show_Rate', y='Neighborhood', orientation='h',
                         title='Top 10 Low No-Show Rate Neighborhoods',
-                        color='No_Show_Rate', color_continuous_scale='Greens')
+                        color='No_Show_Rate', color_continuous_scale='Greens_r')
             st.plotly_chart(fig, use_container_width=True)
         
         # Interactive data table
@@ -431,9 +437,15 @@ class MedicalDashboard:
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            # Appointment count comparison
-            fig = px.pie(df_intervention, values='Appointments_Attended', names='Intervention_Group',
-                        title='Appointment Distribution by Intervention Group')
+            # SMS distribution
+            df_SMS_dist = pd.DataFrame({
+                'Count' : [
+                    df_intervention[df_intervention['Intervention_Group'] == 'SMS Received']['Appointments_Attended'].iloc[0] + df_intervention[df_intervention['Intervention_Group'] == 'SMS Received']['No_Shows'].iloc[0], 
+                    df_intervention[df_intervention['Intervention_Group'] == 'No SMS']['Appointments_Attended'].iloc[0] + df_intervention[df_intervention['Intervention_Group'] == 'No SMS']['No_Shows'].iloc[0]
+                ],
+                'Intervention_Group': ['SMS Received','No SMS']
+            })
+            fig = px.pie(df_SMS_dist, values='Count', names='Intervention_Group', title='SMS Distribution')
             st.plotly_chart(fig, use_container_width=True)
         
         # Display key insights
@@ -451,40 +463,6 @@ class MedicalDashboard:
             """)
         else:
             st.success(f"✅ SMS Intervention Effective: Patients who received SMS had lower no-show rate ({sms_received:.1f}%) than those who didn't ({no_sms:.1f}%)")
-    
-    def display_risk_groups(self):
-        """Display high-risk groups analysis"""
-        st.header("⚠️ High-Risk Groups Analysis")
-        
-        if not self.processed_data['risk_groups']:
-            st.warning("No high-risk groups analysis data available")
-            return
-            
-        risk_data = []
-        for risk_group, stats in self.processed_data['risk_groups'].items():
-            rate = self.calculate_no_show_rate(stats['Attended'], stats['NoShow'])
-            risk_data.append({
-                'Risk_Group': risk_group.replace('_', ' '),
-                'Appointments_Attended': stats['Attended'],
-                'No_Shows': stats['NoShow'],
-                'No_Show_Rate': rate
-            })
-        
-        df_risk = pd.DataFrame(risk_data).sort_values('No_Show_Rate', ascending=False)
-        
-        fig = px.bar(df_risk, x='Risk_Group', y='No_Show_Rate',
-                    title='No-Show Rate by Risk Group',
-                    color='No_Show_Rate',
-                    color_continuous_scale='RdYlGn_r')
-        fig.update_layout(xaxis_title='Risk Group', yaxis_title='No-Show Rate (%)')
-        st.plotly_chart(fig, use_container_width=True)
-        
-        st.subheader("Risk Groups Detailed Data")
-        st.dataframe(df_risk.style.format({
-            'Appointments_Attended': '{:,}',
-            'No_Shows': '{:,}',
-            'No_Show_Rate': '{:.1f}%'
-        }), use_container_width=True)
     
     def display_lead_time_analysis(self):
         """Display lead time analysis"""
@@ -551,7 +529,6 @@ def main():
             "Health Conditions Analysis",
             "Geographical Analysis",
             "Intervention Analysis",
-            "High-Risk Groups",
             "Lead Time Analysis"
         ]
     )
@@ -569,8 +546,6 @@ def main():
         dashboard.display_geographical_analysis()
     elif analysis_option == "Intervention Analysis":
         dashboard.display_intervention_analysis()
-    elif analysis_option == "High-Risk Groups":
-        dashboard.display_risk_groups()
     elif analysis_option == "Lead Time Analysis":
         dashboard.display_lead_time_analysis()
     
@@ -579,7 +554,7 @@ def main():
     st.sidebar.info(
         """
         **Development Information**
-        - Package: zeli8888.ccproject.patient_behavior
+        - Source Code: [GitHub Repository](https://github.com/zeli8888/COMP47780-CLOUD-COMPUTING-PROJECT.git)
         - Tech Stack: Hadoop/MapReduce + Python + Streamlit
         - Data Source: Medical Appointment No Shows Dataset
         """
